@@ -1,0 +1,16 @@
+version: '3.4'
+
+services:
+  wyomingtosonos:
+    image: wyomingtosonos
+    ports:
+      - "10500:10500"
+      - "8080:8080"
+    environment:
+      - SONOS_IP=192.168.1.233
+      - HOST_IP=192.168.1.150
+      - PIPER_IP=192.168.1.8
+      - VOICE_MODEL=en-amy-low.onnx
+    build:
+      context: .
+      dockerfile: ./Dockerfile
