@@ -10,6 +10,7 @@ import os
 from pydub import AudioSegment
 from functools import partial
 from threading import Thread
+from soco.snapshot import Snapshot
 
 from wyoming.event import Event
 from wyoming.server import AsyncEventHandler, AsyncServer
@@ -63,20 +64,24 @@ class SonosEventHandler(AsyncEventHandler):
 
     async def handle_event(self, event: Event) -> bool:
         _LOGGER.info(event)
-
         _LOGGER.info(event.type)
+
+        snapshot = None
+
 
         ttsFile = ''
         if(event.type == 'detection'):
             self.sendToSonos(_SONOS_IP,f'http://{_HOST_IP}:8080/sound_files/tts_start.mp3')
+
         if(event.type == 'error'):
             text_value = event.data.get('text')
             ttsFile = self.getTTS(text_value)
             self.sendToSonos(_SONOS_IP,f'http://{_HOST_IP}:8080/sound_files/tts_error.mp3')
             self.sendToSonos(_SONOS_IP,f'http://{_HOST_IP}:8080/sound_files/{ttsFile}')
-
             time.sleep(2)
             os.remove(f'./sound_files/{ttsFile}')
+
+
         if(event.type == 'synthesize'):
             text_value = event.data.get('text')
             ttsFile = self.getTTS(text_value)
@@ -84,13 +89,29 @@ class SonosEventHandler(AsyncEventHandler):
             time.sleep(2)
             os.remove(f'./sound_files/{ttsFile}')
 
+
+        if(event.type == 'timer-finished')   :
+            text_value = 'Your timer has ended'
+            ttsFile = self.getTTS(text_value)
+            self.sendToSonos(_SONOS_IP,f'http://{_HOST_IP}:8080/sound_files/timer_alert.mp3')
+            time.sleep(2)
+            self.sendToSonos(_SONOS_IP,f'http://{_HOST_IP}:8080/sound_files/{ttsFile}')
+            time.sleep(2)
+            self.sendToSonos(_SONOS_IP,f'http://{_HOST_IP}:8080/sound_files/timer_alert.mp3')
+            time.sleep(2)
+            os.remove(f'./sound_files/{ttsFile}')      
+
+        if(snapshot != None):    
+            snapshot.restore(fade=True)
+
         return True
 
-    def sendToSonos(self,speakerIP,fileUrl):
-
-        sonos = SoCo(speakerIP)
+    def sendToSonos(self,speakerIp,fileUrl):
+        sonos = SoCo(speakerIp)
+        snap =  Snapshot(sonos,True)
+        snapshot = snap.snapshot()
         sonos.play_uri(fileUrl)
-        sonos.play()
+        return snap
 
     def getTTS(self,text):
         headers = {
